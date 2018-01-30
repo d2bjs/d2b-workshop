@@ -1,0 +1,45 @@
+@import url('https://fonts.googleapis.com/css?family=Roboto:300,400,500,700');
+
+$blue: #2589BD;
+$dark-blue: #187795;
+$green: #38686A;
+$light-green: #A3B4A2;
+$tan: #CDC6AE;
+
+body {
+  font-family: Roboto;
+  a, & {
+    color: #222;
+  }
+}
+
+h1 {
+  text-align: center;
+  font-size: 30pt;
+  font-weight: 100;
+}
+
+ul {
+  list-style-type: none;
+  padding: 0;
+  li {
+    background: $blue;
+    text-align: center;
+    padding: 10px;
+    margin-bottom: 10px;
+    border: 1px solid $dark-blue;
+    cursor: pointer;
+  }
+  li, a {
+    text-decoration: none;
+    color: white;
+  }
+  li:hover {
+    background: $dark-blue;
+  }
+}
+
+.chart {
+  width: 100%;
+  height: 600px;
+}

@@ -1,0 +1,20 @@
+@import url('https://fonts.googleapis.com/css?family=Roboto');
+
+pre {
+  font-size: 0.8em;
+  background: #f8f8f8 !important;
+  margin-left: 20px !important;
+  margin-right: 20px !important;
+  position: relative;
+  font-family: 'Roboto', sans-serif !important;
+  line-height: 1.6em !important;
+  margin-top: 20px !important;
+}
+
+pre:before {
+  position: absolute;
+  right: 10px;
+  top: 10px;
+  content: 'HTML';
+  color: #ccc;
+}
