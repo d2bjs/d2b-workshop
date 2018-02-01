@@ -7,7 +7,7 @@ To follow this tutorial, you will need the following tools:
 
 - NodeJS and npm: [Download](https://nodejs.org/en/)
 - Vue devtools extension for Chrome or Firefox (for the vue.js portion: not necessary, but recommended) [Firefox](https://addons.mozilla.org/en-US/firefox/addon/vue-js-devtools/) / [Chrome](https://chrome.google.com/webstore/detail/vuejs-devtools/nhdogjmejiglipccpnnnanhbledajbpd?hl=en)
-- A text editor with
+- A text editor
 
 ## 2. Download The Workshop Project
 To get started with this workshop there is a project template already setup. To download the template run the following command:
