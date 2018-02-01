@@ -485,7 +485,7 @@ First let's import the callout d3-annotation's `annotationCalloutCircle` type an
 ```javascript
 ...
 import { annotationCalloutCircle } from 'd3-svg-annotation'
-import { max } from 'underscore'
+import { max as maxBy } from 'underscore'
 ...
 ```
 
@@ -497,7 +497,7 @@ function getChartData (data) {
   const numberFormat = format('.2'),
         tempFormat = d => `${numberFormat(d)} F`,
         precipFormat = d => `${numberFormat(d)} Inches`,
-        maxPrecipitation = max(data, d => d.precipitation)
+        maxPrecipitation = maxBy(data, d => d.precipitation)
   ...
   {
     label: 'Precipitation',
@@ -622,7 +622,7 @@ Just like before we will need to import modules to our vue App component. Within
   import { select, csv, scaleTime, extent, nest, mean, format, axisBottom, timeFormat } from 'd3'
   import { svgLine, svgArea } from 'd2b'
   import { annotationCalloutCircle, annotationXYThreshold } from 'd3-svg-annotation'
-  import { max } from 'underscore'
+  import { max as maxBy } from 'underscore'
   import { ChartAxis } from 'vue-d2b'
 
   export default {
@@ -700,7 +700,7 @@ export default {
       const numberFormat = format('.2'),
             tempFormat = d => `${numberFormat(d)} F`,
             precipFormat = d => `${numberFormat(d)} Inches`,
-            maxPrecipitation = max(this.dailyData, d => d.precipitation)
+            maxPrecipitation = maxBy(this.dailyData, d => d.precipitation)
 
       return {
         annotations: [
@@ -922,20 +922,26 @@ Not much to this step, just copy over our axis chart configuration into a functi
 Now our chart should look nearly identical to the version done without Vue.js. Notice that we didn't have to setup any responsive functionality because that is all handled internally as long as the `<div>` dimensions are setup with SCSS. See `srce/index/styles.scss` to see which styles the `.chart` class has.
 
 ### 4.7 Adding Some Reactive Functionality: App.vue
-To demonstrate how everything is reactive in this example with Vue let's add a new feature. We can allow the user to pick the tendency type to use when aggregating the dailyData either `mean` or `median`. Here is what is necessary to make this work:
+To demonstrate how everything is reactive in this example with Vue let's add a new feature. We can allow the user to pick the aggregate type to use when computing the dailyData either `mean`, `median`, `max`, or `min`. Here is what is necessary to make this work:
 
 ```html
 <template>
   <div id="app">
 
     <!-- add a radio button form for the user to select the tendency type, bind it to the tendency data attribute -->
-    <b>Select your tendency:</b>
+    <b>Select your aggregate type:</b>
     <br>
     <label for="mean">Mean</label>
-    <input type="radio" id="mean" name="tendency" value="mean" v-model="tendency"/>
+    <input type="radio" id="mean" name="aggregate" value="mean" v-model="aggregate"/>
     <br>
     <label for="median">Median</label>
-    <input type="radio" id="median" name="tendency" value="median" v-model="tendency"/>
+    <input type="radio" id="median" name="aggregate" value="median" v-model="aggregate"/>
+    <br>
+    <label for="min">Min</label>
+    <input type="radio" id="min" name="aggregate" value="min" v-model="aggregate"/>
+    <br>
+    <label for="max">Max</label>
+    <input type="radio" id="max" name="aggregate" value="max" v-model="aggregate"/>
 
     <chart-axis
       v-if="data"
@@ -950,25 +956,23 @@ To demonstrate how everything is reactive in this example with Vue let's add a n
 
 <script>
   // add the median module to our d3 import
-  import { select, csv, scaleTime, extent, nest, mean, median, format, axisBottom, timeFormat } from 'd3'
+  import { select, csv, scaleTime, extent, nest, mean, median, min, max, format, axisBottom, timeFormat } from 'd3'
 
   ...
 
+  // store all aggregate methods in an object, so that they are retrievable by aggregate[type]
+  const aggregate = { mean, median, min, max }
+
   export default {
     data () {
-      // add the tendency data that will be bound to the radio button form and default it to 'mean'
-      tendency: 'mean',
+      // add the aggregate data that will be bound to the radio button form and default it to 'mean'
+      aggregate: 'mean',
 
       ...
     },
 
     computed: {
-      // compute which d3 module should be used based on the user's tendency selection
-      tendencyMethod () {
-        return this.tendency === 'median' ? median : mean
-      },
-
-      // then use the tendencyMethod computed property when computing the dailyData instead of mean
+      // then use the aggregate type when computing the dailyData instead of mean
       dailyData () {
         return nest()
           .key(d => d.date)
@@ -976,9 +980,9 @@ To demonstrate how everything is reactive in this example with Vue let's add a n
           .map(d => {
             return {
               date: new Date(`2017-${d.key}`),
-              precipitation: this.tendencyMethod(d.values, v => parseFloat(v.PRCP)),
-              tempMin: this.tendencyMethod(d.values, v => parseFloat(v.TMIN)),
-              tempMax: this.tendencyMethod(d.values, v => parseFloat(v.TMAX))
+              precipitation: aggregate[this.aggregate](d.values, v => parseFloat(v.PRCP)),
+              tempMin: aggregate[this.aggregate](d.values, v => parseFloat(v.TMIN)),
+              tempMax: aggregate[this.aggregate](d.values, v => parseFloat(v.TMAX))
             }
           })
       },

@@ -1,13 +1,19 @@
 <template>
   <div id="app">
 
-    <b>Select your tendency:</b>
+    <b>Select your aggregate type:</b>
     <br>
     <label for="mean">Mean</label>
-    <input type="radio" id="mean" name="tendency" value="mean" v-model="tendency"/>
+    <input type="radio" id="mean" name="aggregate" value="mean" v-model="aggregate"/>
     <br>
     <label for="median">Median</label>
-    <input type="radio" id="median" name="tendency" value="median" v-model="tendency"/>
+    <input type="radio" id="median" name="aggregate" value="median" v-model="aggregate"/>
+    <br>
+    <label for="min">Min</label>
+    <input type="radio" id="min" name="aggregate" value="min" v-model="aggregate"/>
+    <br>
+    <label for="max">Max</label>
+    <input type="radio" id="max" name="aggregate" value="max" v-model="aggregate"/>
 
     <chart-axis
       v-if="data"
@@ -21,17 +27,19 @@
 </template>
 
 <script>
-  import { select, csv, scaleTime, extent, nest, mean, median, format, axisBottom, timeFormat } from 'd3'
+  import { select, csv, scaleTime, extent, nest, mean, median, min, max, format, axisBottom, timeFormat } from 'd3'
   import { svgLine, svgArea } from 'd2b'
   import { annotationCalloutCircle, annotationXYThreshold } from 'd3-svg-annotation'
-  import { max } from 'underscore'
+  import { max as maxBy } from 'underscore'
   import { ChartAxis } from 'vue-d2b'
+
+  const aggregate = { mean, median, min, max }
 
   export default {
     data () {
       return {
         data: null,
-        tendency: 'mean',
+        aggregate: 'mean',
         chartConfig (chart) {
           const monthFormat = timeFormat('%B'),
                 dayFormat = timeFormat('%B %d')
@@ -71,10 +79,6 @@
     },
 
     computed: {
-      tendencyMethod () {
-        return this.tendency === 'median' ? median : mean
-      },
-
       // compute daily mean precip and temperatures values
       dailyData () {
         return nest()
@@ -83,9 +87,9 @@
           .map(d => {
             return {
               date: new Date(`2017-${d.key}`),
-              precipitation: this.tendencyMethod(d.values, v => parseFloat(v.PRCP)),
-              tempMin: this.tendencyMethod(d.values, v => parseFloat(v.TMIN)),
-              tempMax: this.tendencyMethod(d.values, v => parseFloat(v.TMAX))
+              precipitation: aggregate[this.aggregate](d.values, v => parseFloat(v.PRCP)),
+              tempMin: aggregate[this.aggregate](d.values, v => parseFloat(v.TMIN)),
+              tempMax: aggregate[this.aggregate](d.values, v => parseFloat(v.TMAX))
             }
           })
       },
@@ -95,7 +99,7 @@
         const numberFormat = format('.2'),
               tempFormat = d => `${numberFormat(d)} F`,
               precipFormat = d => `${numberFormat(d)} Inches`,
-              maxPrecipitation = max(this.dailyData, d => d.precipitation)
+              maxPrecipitation = maxBy(this.dailyData, d => d.precipitation)
 
         return {
           annotations: [
