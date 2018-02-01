@@ -62,6 +62,7 @@ First, we will need to add a <div> container for our chart.
   <div class="chart"></div>
 
 </body>
+...
 ```
 
 ### 3.2 Importing library modules: index.js
@@ -73,11 +74,12 @@ import { chartAxis, svgLine, svgArea } from 'd2b'
 ```
 
 ### 3.3 Retrieve Some Data: index.js
-Next, let's retrieve some data. For this example we will be working 25,000+ consecutive days of Seattle weather data.
+Next, let's retrieve some data. For this example we will be working 25,000+ consecutive days of Seattle weather data. Once the data is fetched we can also add a new `date` property that is the weather date in `mm-dd` format (e.g. we will create a date without the year).
 
 ```javascript
 ...
 csv('src/data/seattle_weather.csv', data => {
+  data.forEach(d => d.date = d.DATE.slice(-5))
   console.log(data)
 })
 ```
@@ -94,9 +96,6 @@ Add a `getDailyData` function to the bottom of our script:
 ```javascript
 ...
 function getDailyData (data) {
-  // retrieve mm-dd from the DATE column
-  data.forEach(d => d.date = d.DATE.slice(-5))
-
   // get daily mean precipitation and temperatures values
   return nest()
     .key(d => d.date)
@@ -122,13 +121,14 @@ Then we need to call this function after we retrieved our data in the previous s
 ```javascript
 ...
 csv('src/data/seattle_weather.csv', data => {
+  data.forEach(d => d.date = d.DATE.slice(-5))
   console.log(data)
 
   const dailyData = getDailyData(data)
 })
 
 function getDailyData (data) {
-...
+  ...
 }
 ```
 
@@ -136,6 +136,7 @@ function getDailyData (data) {
 In this step we will create a function to return the d2b.chartAxis generator. Later on we will configure the axis chart here as well.
 
 ```javascript
+...
 function getAxisChart () {
   return chartAxis()
 }
@@ -146,6 +147,7 @@ And let's use that in our csv calback.
 ```javascript
 ...
 csv('src/data/seattle_weather.csv', data => {
+  data.forEach(d => d.date = d.DATE.slice(-5))
   console.log(data)
 
   const dailyData = getDailyData(data)
@@ -153,8 +155,10 @@ csv('src/data/seattle_weather.csv', data => {
   const axisChart = getAxisChart()
 })
 
-function getAxisChart (data) {
 ...
+
+function getAxisChart (data) {
+  ...
 }
 ```
 
@@ -215,6 +219,7 @@ We can now use the previously defined `getChartData` function to generate the ch
 ```javascript
 ...
 csv('src/data/seattle_weather.csv', data => {
+  data.forEach(d => d.date = d.DATE.slice(-5))
   console.log(data)
 
   const dailyData = getDailyData(data)
@@ -445,6 +450,7 @@ By now we should have something like this:
 Let's add labels and some padding to the y-axes. Again this will go in the axis chart configuration. The `linearPadding` option allows you to pad either extent by a percent of the entire range. Also,  unlike the x-axis configuration we don't need access to the dynamic set of values so we can pass a config object directly, rather than a callback function.
 
 ```javascript
+...
 function getAxisChart () {
   const monthFormat = timeFormat('%B'),
         dayFormat = timeFormat('%B %d')
@@ -469,47 +475,521 @@ function getAxisChart () {
     })
     .graphColor(d => d.color)
 }
+...
 ```
 
 ### 3.14 Add Annotations: index.js
-One of the new features in d2b is the ability to add annotations to an axis chart. These can be done at the chart, graph, or point level. In this example we will add an annotation to the precipitation graph at the maximum value. Learn more about annotations from the [d3-annotation](d3-annotation.susielu.com) documentation.
+One of the new features in d2b is the ability to add annotations to an axis chart. These can be done at the chart, graph, or point level. In this example we will dynamically add an annotation to the precipitation graph at the maximum value. Learn more about annotations from the [d3-annotation](d3-annotation.susielu.com) documentation.
 
-First let's import the callout circle annotation type at the beginning of the file:
+First let's import the callout d3-annotation's `annotationCalloutCircle` type and underscore's `max` function at the beginning of the file:
 ```javascript
 ...
 import { annotationCalloutCircle } from 'd3-svg-annotation'
+import { max } from 'underscore'
 ...
 ```
 
-Then we can add an annotations array to the precipitation graph:
+Then we can compute the maximum precipitation row and add an annotation for it to the precipitation graph:
 
 ```javascript
 ...
-{
-  label: 'Precipitation',
-  color: '#7FDBFF',
-  tooltipConfig: tooltip => {
-    tooltip.row(row => precipFormat(row.y))
-  },
-  values: data.map(d => {
-    return {
-      x: d.date,
-      y: d.precipitation
-    }
-  }),
-  annotations: [
-    {
-      x: new Date('2017-11-19'),
-      y: 0.3,
-      type: annotationCalloutCircle,
-      note: { title: 'Peak Rainfall In November' },
-      dx: -100,
-      dy: -40,
-      subject: {
-        radius: 40
+function getChartData (data) {
+  const numberFormat = format('.2'),
+        tempFormat = d => `${numberFormat(d)} F`,
+        precipFormat = d => `${numberFormat(d)} Inches`,
+        maxPrecipitation = max(data, d => d.precipitation)
+  ...
+  {
+    label: 'Precipitation',
+    color: '#7FDBFF',
+    tooltipConfig: tooltip => {
+      tooltip.row(row => precipFormat(row.y))
+    },
+    values: data.map(d => {
+      return {
+        x: d.date,
+        y: d.precipitation
       }
-    }
-  ]
+    }),
+    annotations: [
+      {
+        x: maxPrecipitation.date,
+        y: maxPrecipitation.precipitation,
+        type: annotationCalloutCircle,
+        note: { title: 'Peak Rainfall In November' },
+        dx: -100,
+        dy: -40,
+        subject: {
+          radius: 40
+        }
+      }
+    ]
+  }
 }
 ...
 ```
+
+![](readme_images/axis-chart-3.png)
+
+Extra annotations:
+
+We may also add chart level annotations that apply to all of the graphs in the axis chart. For example we can add threshold annotations for the starts of each season.
+
+We need to update the annotation import to include the threshold annotation type.
+```javascript
+...
+import { annotationCalloutCircle, annotationXYThreshold } from 'd3-svg-annotation'
+...
+```
+
+Then we can add these annotations at the top level of the chart data. Because these are not graph level annotations, the annotation colors will not be inherited from their parent graph. Instead we can set the annotation color directly in each annotation.
+
+```javascript
+
+function getChartData (data) {
+  ...
+  return {
+    annotations: [
+      {
+        x: new Date('2017-12-01'),
+        y: Infinity,
+        y2: Infinity,
+        z: 'back',
+        color: 'rgb(162, 204, 250)',
+        type: annotationXYThreshold,
+        note: { title: 'Winter' },
+        dx: 10,
+        dy: 10,
+        disable: ['connector']
+      },
+      {
+        x: new Date('2017-03-01'),
+        y: Infinity,
+        y2: Infinity,
+        z: 'back',
+        color: 'rgb(117, 249, 76)',
+        type: annotationXYThreshold,
+        note: { title: 'Spring' },
+        dx: 10,
+        dy: 10,
+        disable: ['connector']
+      },
+      {
+        x: new Date('2017-06-01'),
+        y: Infinity,
+        y2: Infinity,
+        z: 'back',
+        color: 'rgb(239, 238, 14)',
+        type: annotationXYThreshold,
+        note: { title: 'Summer' },
+        dx: 10,
+        dy: 10,
+        disable: ['connector']
+      },
+      {
+        x: new Date('2017-09-01'),
+        y: Infinity,
+        y2: Infinity,
+        z: 'back',
+        color: 'rgb(218, 143, 128)',
+        type: annotationXYThreshold,
+        note: { title: 'Fall' },
+        dx: 10,
+        dy: 10,
+        disable: ['connector']
+      },
+    ],
+    sets: [
+      ...
+    ]
+  }
+}
+```
+
+## 4. D2B With Vue example: src/demo_vue_d2b
+For this next example we are going to implement the previous d2b chart from step `3.` with `vue.js` and the `vue-d2b` plugin. We won't be going into many details about Vue.js, this is strictly to see how to integrate d2b and d3 charts in a vue app. To learn more about vue check out their great [documentation](vuejs.org).
+
+### 4.1 Importing library modules: App.vue
+Just like before we will need to import modules to our vue App component. Within the script tags you can add these lines to import the necessary modules. The only difference here from our previous example is that instead of importing `chartAxis` directly from d2b we will import the `ChartAxis` component from the vue-d2b plugin.
+
+```html
+<template>
+  <div id="app">
+  </div>
+</template>
+
+<script>
+  import { select, csv, scaleTime, extent, nest, mean, format, axisBottom, timeFormat } from 'd3'
+  import { svgLine, svgArea } from 'd2b'
+  import { annotationCalloutCircle, annotationXYThreshold } from 'd3-svg-annotation'
+  import { max } from 'underscore'
+  import { ChartAxis } from 'vue-d2b'
+
+  export default {
+  }
+</script>
+```
+
+### 4.2 Retrieving Data: App.vue
+To import the data we will still be using the d3 csv module, but this time we will do it in Vue's `created` hook. That way whenever this vue component is created this function will be executed. Then we will store the retrieved data in the `data` attribute which is initialized to `null`.
+
+```javascript
+...
+export default {
+  data () {
+    return {
+      data: null
+    }
+  },
+
+  created () {
+    csv('src/data/seattle_weather.csv', data => {
+      data.forEach(d => d.date = d.DATE.slice(-5))
+      this.data = data
+    })
+  }
+}
+...
+```
+
+### 4.3 Format the Data: App.vue
+Once we have the `data` stored on the vue instance, we can format the `dailyData` using a computed property. That way if any changes are made to the original `data` this will reactively update the `dailyData` automatically. The only difference here is that instead of passing the function the `data` argument, just use the instances `data` property (e.g. `this.data`). Add the `computed` properties underneath the `created` hook:
+
+```javascript
+...
+export default {
+  ...
+  created () {
+    ...
+  },
+
+  computed: {
+    // compute daily mean precip and temperatures values
+    dailyData () {
+      return nest()
+        .key(d => d.date)
+        .entries(this.data.filter(d => d.date !== '02-29'))
+        .map(d => {
+          return {
+            date: new Date(`2017-${d.key}`),
+            precipitation: mean(d.values, v => parseFloat(v.PRCP)),
+            tempMin: mean(d.values, v => parseFloat(v.TMIN)),
+            tempMax: mean(d.values, v => parseFloat(v.TMAX))
+          }
+        })
+    }
+  }
+}
+...
+```
+
+### 4.4 Build the Chart Data: App.vue
+We can then build the chart data with another computed property `chartData`. The only difference from the example in step `3.` is that, again, instead of using a `data` argument we can use the `this.dailyData` computed property.
+
+```javascript
+export default {
+  ...
+
+  computed: {
+    dailyData () {
+      ...
+    },
+
+    // compute the chart data
+    chartData () {
+      const numberFormat = format('.2'),
+            tempFormat = d => `${numberFormat(d)} F`,
+            precipFormat = d => `${numberFormat(d)} Inches`,
+            maxPrecipitation = max(this.dailyData, d => d.precipitation)
+
+      return {
+        annotations: [
+          {
+            x: new Date('2017-12-01'),
+            y: Infinity,
+            y2: Infinity,
+            z: 'back',
+            color: 'rgb(162, 204, 250)',
+            type: annotationXYThreshold,
+            note: { title: 'Winter' },
+            dx: 10,
+            dy: 10,
+            disable: ['connector']
+          },
+          {
+            x: new Date('2017-03-01'),
+            y: Infinity,
+            y2: Infinity,
+            z: 'back',
+            color: 'rgb(117, 249, 76)',
+            type: annotationXYThreshold,
+            note: { title: 'Spring' },
+            dx: 10,
+            dy: 10,
+            disable: ['connector']
+          },
+          {
+            x: new Date('2017-06-01'),
+            y: Infinity,
+            y2: Infinity,
+            z: 'back',
+            color: 'rgb(239, 238, 14)',
+            type: annotationXYThreshold,
+            note: { title: 'Summer' },
+            dx: 10,
+            dy: 10,
+            disable: ['connector']
+          },
+          {
+            x: new Date('2017-09-01'),
+            y: Infinity,
+            y2: Infinity,
+            z: 'back',
+            color: 'rgb(218, 143, 128)',
+            type: annotationXYThreshold,
+            note: { title: 'Fall' },
+            dx: 10,
+            dy: 10,
+            disable: ['connector']
+          },
+        ],
+        sets: [
+          {
+            generators: [svgArea(), svgLine()],
+            graphs: [
+              {
+                label: 'Precipitation',
+                color: '#7FDBFF',
+                tooltipConfig: tooltip => {
+                  tooltip.row(row => precipFormat(row.y))
+                },
+                values: this.dailyData.map(d => {
+                  return {
+                    x: d.date,
+                    y: d.precipitation
+                  }
+                }),
+                annotations: [
+                  {
+                    x: maxPrecipitation.date,
+                    y: maxPrecipitation.precipitation,
+                    type: annotationCalloutCircle,
+                    note: { title: 'Peak Rainfall In November' },
+                    dx: -60,
+                    dy: 0,
+                    subject: {
+                      radius: 30
+                    }
+                  }
+                ]
+              }
+            ]
+          },
+          {
+            generators: [svgLine()],
+            yType: 'y2',
+            graphs: [
+              {
+                label: 'Minimum Temperature',
+                yType: 'y2',
+                color: '#0074D9',
+                tooltipConfig: tooltip => {
+                  tooltip.row(row => tempFormat(row.y))
+                },
+                values: this.dailyData.map(d => {
+                  return {
+                    x: d.date,
+                    y: d.tempMin
+                  }
+                })
+              },
+              {
+                label: 'Maximum Temperature',
+                yType: 'y2',
+                color: '#FF4136',
+                tooltipConfig: tooltip => {
+                  tooltip.row(row => tempFormat(row.y))
+                },
+                values: this.dailyData.map(d => {
+                  return {
+                    x: d.date,
+                    y: d.tempMax
+                  }
+                })
+              }
+            ]
+          }
+        ]
+      }
+    }
+  }
+}
+```
+
+### 4.5 Render the Axis Chart Component: App.vue
+Now it's time to add the axis chart to our App template. We will be binding the `data` attribute to our `chartData` computed property. And we will only show the axis chart if the initial csv `data` is present (remember we defaulted this to `null` so it will initially be falsy and not render the chart). The other thing we need to do in this step is to make sure the App component knows about the `ChartAxis` child component.
+
+```html
+<template>
+  <div id="app">
+
+    <chart-axis
+      v-if="data"
+      class="chart"
+      :data="chartData"
+    >
+    </chart-axis>
+
+  </div>
+</template>
+
+<script>
+  ...
+  export default {
+    ...
+
+    computed: {
+      ...
+    },
+
+    components: {
+      ChartAxis
+    }
+  }
+</script>
+```
+
+Once this step is complete we should be able to see the chart start to take shape. We still have not done the chart configuration yet thought so there might be some issues with it.
+
+### 4.6 Add Chart Configuration: App.vue
+Not much to this step, just copy over our axis chart configuration into a function on the App's data. We will call the function `chartConfig` and likewise bound the chart-axis `config` prop on the template to this function. The one difference to note here from our previous configuration is that vue-d2b will take care of initialize the actual `d2b.chartAxis` generator and it is passed directly to the `config` function.
+
+
+```html
+<template>
+  <div id="app">
+
+    <chart-axis
+      v-if="data"
+      class="chart"
+      :data="chartData"
+      :config="chartConfig"
+    >
+    </chart-axis>
+
+  </div>
+</template>
+
+<script>
+  ...
+  export default {
+    data () {
+      return {
+        data: null,
+
+        chartConfig (chart) {
+          const monthFormat = timeFormat('%B'),
+                dayFormat = timeFormat('%B %d')
+
+          chart
+            .x((d, values) => {
+              return {
+                axis: axisBottom().tickFormat(monthFormat),
+                scale: scaleTime().domain(extent(values))
+              }
+            })
+            .y({
+              label: 'Average Precipitation (Inches)',
+              linearPadding: [0, 0.25]
+            })
+            .y2({
+              label: 'Average Temperature (F)',
+              linearPadding: [0, 0.25]
+            })
+            .tooltipConfig(tooltip => {
+              tooltip.title(rows => dayFormat(rows[0].x))
+            })
+            .graphColor(d => d.color)
+        }
+      }
+    },
+
+    ...
+  }
+</script>
+```
+
+Now our chart should look nearly identical to the version done without Vue.js. Notice that we didn't have to setup any responsive functionality because that is all handled internally as long as the `<div>` dimensions are setup with SCSS. See `srce/index/styles.scss` to see which styles the `.chart` class has.
+
+### 4.7 Adding Some Reactive Functionality: App.vue
+To demonstrate how everything is reactive in this example with Vue let's add a new feature. We can allow the user to pick the tendency type to use when aggregating the dailyData either `mean` or `median`. Here is what is necessary to make this work:
+
+```html
+<template>
+  <div id="app">
+
+    <!-- add a radio button form for the user to select the tendency type, bind it to the tendency data attribute -->
+    <b>Select your tendency:</b>
+    <br>
+    <label for="mean">Mean</label>
+    <input type="radio" id="mean" name="tendency" value="mean" v-model="tendency"/>
+    <br>
+    <label for="median">Median</label>
+    <input type="radio" id="median" name="tendency" value="median" v-model="tendency"/>
+
+    <chart-axis
+      v-if="data"
+      class="chart"
+      :data="chartData"
+      :config="chartConfig"
+    >
+    </chart-axis>
+
+  </div>
+</template>
+
+<script>
+  // add the median module to our d3 import
+  import { select, csv, scaleTime, extent, nest, mean, median, format, axisBottom, timeFormat } from 'd3'
+
+  ...
+
+  export default {
+    data () {
+      // add the tendency data that will be bound to the radio button form and default it to 'mean'
+      tendency: 'mean',
+
+      ...
+    },
+
+    computed: {
+      // compute which d3 module should be used based on the user's tendency selection
+      tendencyMethod () {
+        return this.tendency === 'median' ? median : mean
+      },
+
+      // then use the tendencyMethod computed property when computing the dailyData instead of mean
+      dailyData () {
+        return nest()
+          .key(d => d.date)
+          .entries(this.data.filter(d => d.date !== '02-29'))
+          .map(d => {
+            return {
+              date: new Date(`2017-${d.key}`),
+              precipitation: this.tendencyMethod(d.values, v => parseFloat(v.PRCP)),
+              tempMin: this.tendencyMethod(d.values, v => parseFloat(v.TMIN)),
+              tempMax: this.tendencyMethod(d.values, v => parseFloat(v.TMAX))
+            }
+          })
+      },
+
+      ...
+    }
+    ...
+  }
+</script>
+```
+
+And there you have it, with those simple changes vue will take care of the rest by reactively updating anything that should be changed due to a dependency on the `dailyData` computed property.
+
+![](readme_images/axis-chart-4.png)

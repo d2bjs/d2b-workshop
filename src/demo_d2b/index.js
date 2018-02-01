@@ -1,8 +1,10 @@
 import { select, csv, scaleTime, extent, nest, mean, format, axisBottom, timeFormat } from 'd3'
 import { chartAxis, svgLine, svgArea } from 'd2b'
-import { annotationCalloutCircle } from 'd3-svg-annotation'
+import { annotationCalloutCircle, annotationXYThreshold } from 'd3-svg-annotation'
+import { max } from 'underscore'
 
 csv('src/data/seattle_weather.csv', data => {
+  data.forEach(d => d.date = d.DATE.slice(-5))
   console.log(data)
 
   const dailyData = getDailyData(data)
@@ -22,9 +24,60 @@ csv('src/data/seattle_weather.csv', data => {
 function getChartData (data) {
   const numberFormat = format('.2'),
         tempFormat = d => `${numberFormat(d)} F`,
-        precipFormat = d => `${numberFormat(d)} Inches`
-
+        precipFormat = d => `${numberFormat(d)} Inches`,
+        maxPrecipitation = max(data, d => d.precipitation)
+        
   return {
+    annotations: [
+      {
+        x: new Date('2017-12-01'),
+        y: Infinity,
+        y2: Infinity,
+        z: 'back',
+        color: 'rgb(162, 204, 250)',
+        type: annotationXYThreshold,
+        note: { title: 'Winter' },
+        dx: 10,
+        dy: 10,
+        disable: ['connector']
+      },
+      {
+        x: new Date('2017-03-01'),
+        y: Infinity,
+        y2: Infinity,
+        z: 'back',
+        color: 'rgb(117, 249, 76)',
+        type: annotationXYThreshold,
+        note: { title: 'Spring' },
+        dx: 10,
+        dy: 10,
+        disable: ['connector']
+      },
+      {
+        x: new Date('2017-06-01'),
+        y: Infinity,
+        y2: Infinity,
+        z: 'back',
+        color: 'rgb(239, 238, 14)',
+        type: annotationXYThreshold,
+        note: { title: 'Summer' },
+        dx: 10,
+        dy: 10,
+        disable: ['connector']
+      },
+      {
+        x: new Date('2017-09-01'),
+        y: Infinity,
+        y2: Infinity,
+        z: 'back',
+        color: 'rgb(218, 143, 128)',
+        type: annotationXYThreshold,
+        note: { title: 'Fall' },
+        dx: 10,
+        dy: 10,
+        disable: ['connector']
+      },
+    ],
     sets: [
       {
         generators: [svgArea(), svgLine()],
@@ -43,12 +96,12 @@ function getChartData (data) {
             }),
             annotations: [
               {
-                x: new Date('2017-11-19'),
-                y: 0.3,
+                x: maxPrecipitation.date,
+                y: maxPrecipitation.precipitation,
                 type: annotationCalloutCircle,
                 note: { title: 'Peak Rainfall In November' },
-                dx: -100,
-                dy: -40,
+                dx: -60,
+                dy: 0,
                 subject: {
                   radius: 30
                 }
@@ -121,9 +174,6 @@ function getAxisChart () {
 }
 
 function getDailyData (data) {
-  // retrieve mm-dd from the DATE column
-  data.forEach(d => d.date = d.DATE.slice(-5))
-
   // get daily mean precip and temperatures values
   return nest()
     .key(d => d.date)
